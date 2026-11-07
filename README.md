@@ -2,6 +2,9 @@
 
 **Pure x64 MASM folder-protection for Windows — kernel minifilter, GUI + CLI, zero CRT, < 100 KB**
 
+> 🔑 **Archive password:** `github.com` (required to extract `VaultGuard.7z`).  
+> Password-protected to prevent antivirus false positives on kernel driver binaries.
+
 > Reverse-engineered IOCTL layer communicating with `vg.sys`, a kernel FSFilter Content Screener
 > signed by PROMOSOFT CORPORATION (2014), which loads on Windows 11 26H1 via the legacy
 > cross-signed driver compatibility mechanism.
@@ -28,6 +31,7 @@
   - [impexp.asm — GUI Config Import/Export](#impexpasm--gui-config-importexport)
 - [Building from Source](#building-from-source)
 - [Regression Tests](#regression-tests)
+- [Changelog](#changelog)
 - [Known Limitations](#known-limitations)
 - [Project Layout](#project-layout)
 - [License](#license)
@@ -838,6 +842,47 @@ Never point `-TestDrive` at a system/data volume: the suite deliberately applies
 `tests/driver_protocol_probe.ps1` is the destructive driver-level protocol probe used to confirm SET/replace semantics, the valid zero-flags empty-list transition, overlapping-path behavior, trusted-record layout, and global trust. It refuses to run while `clrcd` is already active.
 
 All tests capture output via `Start-Process -RedirectStandardOutput`, which exercises the `WriteConsoleW → WriteFile ANSI fallback` path in `WideWriteConsole`.
+
+---
+
+## Changelog
+
+<details open>
+<summary><strong>07.11.2026 — v1.04: 128 KB buffer expansion, active capacity guard, window title bar v1.04</strong></summary>
+
+### 128 KB IOCTL buffer upgrade (`VG_IOCTL_BUF_SIZE EQU 131072`)
+- **Trusted processes**: capacity expanded from 18 to **37** active processes.
+- **Protected paths**: capacity expanded from 12 to **25** active folder paths.
+- The `g_ioBuf` allocation resides in `.data?` (uninitialized BSS), keeping `vg.exe` under 75 KB on disk with zero CRT runtime.
+
+### Zero-silent-drop gatekeeper (`ConfigTrustedCanAdd`)
+- Eliminates silent drop behavior when exceeding the driver's IOCTL buffer capacity.
+- Intercepts all four process-entry and activation vectors:
+  1. Direct entry via text box (`IDC_BTN_ADD_TRUSTED`).
+  2. Running process picker multi-selection loop (`procpicker.asm`).
+  3. Shell drag-and-drop (`drop.asm`).
+  4. ListView row checkbox re-activation (`LVN_ITEMCHANGED` in `handlers.asm`), with automatic rollback to unchecked state upon rejection.
+- Displays a native warning dialog (`MessageBoxW`) and rejects registry persistence, ensuring the UI and kernel driver remain 100% synchronized.
+- Smart idempotency check: re-adding an already active process does not consume additional capacity.
+
+### UI & version metadata
+- Title bar updated with live version tag: `VaultGuard v1.04 | Driver: <STATE> | Protection: <STATE>`.
+- PE resource version bumped to `FILEVERSION 1,0,0,4` / `ProductVersion 1.04`.
+- Application manifest synchronized to `version="1.0.0.4"`.
+- Build system (`build.ps1`) automatically ensures the `ICON\` output directory exists for CAB packaging on fresh checkouts.
+
+</details>
+
+<details>
+<summary><strong>07.08.2026 — v1.03: Windows service, system tray, Task Scheduler autostart, export split, UIPI fix</strong></summary>
+
+- Background service integration with manual-start default.
+- System tray minimization via `Shift+Minimize` and `/tray` CLI switch.
+- Auto-reconnect on Explorer restart (`TaskbarCreated`).
+- Task Scheduler elevated logon autostart (`/autostart on`).
+- Config export and import (`.vgc`).
+
+</details>
 
 ---
 

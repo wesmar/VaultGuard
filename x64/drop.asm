@@ -31,6 +31,7 @@ EXTRN wcs_ascii_lower_inplace   :PROC   ; strutil.asm
 EXTRN RefreshLists              :PROC   ; listview.asm
 EXTRN ConfigSavePath            :PROC   ; config.asm
 EXTRN ConfigSaveTrusted         :PROC   ; config.asm
+EXTRN ConfigTrustedCanAdd       :PROC   ; config.asm
 EXTRN ConfigLoad                :PROC   ; config.asm
 EXTRN EnsureDriverReady         :PROC   ; device.asm
 EXTRN CloseDevice               :PROC   ; device.asm
@@ -307,6 +308,14 @@ _OnDropFiles proc
 
     mov     rcx, rdi
     call    wcs_ascii_lower_inplace     ; driver compares lowercase names
+
+    ; Refuse (with message) when the driver list is already full
+    mov     rcx, rdi
+    mov     rdx, g_hwndMain
+    call    ConfigTrustedCanAdd
+    test    eax, eax
+    jz      @odf_finish
+
     call    EnsureDriverReady
     test    eax, eax
     jz      @odf_finish

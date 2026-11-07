@@ -512,7 +512,7 @@ IoctlEnumPaths proc
     mov     qword ptr [rsp+38h], 0              ; lpOverlapped = NULL
     lea     r10, [rsp+3Ch]
     mov     qword ptr [rsp+30h], r10            ; lpBytesReturned
-    mov     dword ptr [rsp+28h], VG_IOCTL_BUF_SIZE  ; nOutBufSize = 64 KB
+    mov     dword ptr [rsp+28h], VG_IOCTL_BUF_SIZE  ; nOutBufSize = 128 KB
     lea     r10, g_ioBuf
     mov     qword ptr [rsp+20h], r10            ; lpOutBuf = g_ioBuf
     xor     r9d, r9d                            ; nInBufSize = 0

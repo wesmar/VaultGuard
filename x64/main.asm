@@ -83,7 +83,7 @@ g_prevProtActive    db 0FFh
 
 PUBLIC g_ioBuf, g_pathBuf, g_tempBuf, g_statusBuf
 
-g_ioBuf     db VG_IOCTL_BUF_SIZE dup(?)    ; 64 KB IOCTL enum buffer
+g_ioBuf     db VG_IOCTL_BUF_SIZE dup(?)    ; 128 KB IOCTL buffer
 g_pathBuf   dw 520 dup(?)                  ; path edit scratch (MAX_PATH+1)
 g_tempBuf   dw 520 dup(?)                  ; general scratch
 g_statusBuf dw 520 dup(?)                  ; status text scratch

@@ -41,6 +41,7 @@ EXTRN EnsureDriverReady         :PROC
 EXTRN CloseDevice               :PROC
 EXTRN IoctlAddTrusted           :PROC
 EXTRN ConfigSaveTrusted         :PROC
+EXTRN ConfigTrustedCanAdd       :PROC
 EXTRN ConfigLoad                :PROC
 
 ; ==============================================================================
@@ -420,6 +421,13 @@ _ProcPickDlgProc proc
 
     lea     rcx, pp_name_buf
     call    wcs_ascii_lower_inplace
+
+    ; Stop (one message) once the driver list is full; earlier picks are kept
+    lea     rcx, pp_name_buf
+    mov     rdx, rbx                            ; owner = picker dialog
+    call    ConfigTrustedCanAdd
+    test    eax, eax
+    jz      @pp_select_done
 
     lea     rcx, pp_name_buf
     call    IoctlAddTrusted

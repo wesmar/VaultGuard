@@ -12,6 +12,8 @@
 ;   ConfigRemovePath(path)       — rcx=WCHAR*
 ;   ConfigSaveTrusted(name)      — rcx=WCHAR*
 ;   ConfigRemoveTrusted(name)    — rcx=WCHAR*
+;   ConfigTrustedCanAdd(name, hwndOwner) — eax=1 if the entry fits in the driver
+;                                  list, else shows a message and returns 0
 ;   ConfigDeleteAll()            — delete known HKCU\Software\VG config keys
 ; ==============================================================================
 
@@ -36,6 +38,8 @@ EXTRN IoctlSendPathBuffer      :PROC
 EXTRN IoctlSendTrustedBuffer   :PROC
 EXTRN wcs_ascii_lower_inplace :PROC
 EXTRN wcscpy_p          :PROC
+EXTRN wcscmp_ci         :PROC
+EXTRN MessageBoxW       :PROC
 
 .data?
     cfg_hkey     dq ?           ; phkResult scratch
@@ -51,6 +55,12 @@ EXTRN wcscpy_p          :PROC
     str_key_paths   dw 'S','o','f','t','w','a','r','e','\','V','G','\','P','a','t','h','s',0
     str_key_trusted dw 'S','o','f','t','w','a','r','e','\','V','G','\','T','r','u','s','t','e','d',0
     str_key_root    dw 'S','o','f','t','w','a','r','e','\','V','G',0
+    str_lim_title   dw 'V','a','u','l','t',' ','G','u','a','r','d',0
+    str_lim_trusted dw 'T','h','e',' ','t','r','u','s','t','e','d',' ','p','r','o','c','e','s','s',' '
+                    dw 'l','i','s','t',' ','i','s',' ','f','u','l','l','.',' '
+                    dw 'R','e','m','o','v','e',' ','o','r',' ','d','i','s','a','b','l','e',' ','a','n',' '
+                    dw 'e','n','t','r','y',' ','b','e','f','o','r','e',' ','a','d','d','i','n','g',' '
+                    dw 'a','n','o','t','h','e','r','.',0
 
 .code
 
@@ -506,6 +516,102 @@ ConfigLoad proc
     pop     rbx
     ret
 ConfigLoad endp
+
+; ==============================================================================
+; ConfigTrustedCanAdd  rcx=name(WCHAR*)  rdx=hwndOwner  →  eax=1 allowed / 0 denied
+; ConfigLoad can push at most VG_IOCTL_BUF_SIZE / VG_TRUSTED_RECORD_SIZE active
+; trusted records to the driver (g_ioBuf capacity); anything beyond is skipped.
+; Call this BEFORE saving a new/re-enabled trusted entry so the GUI never shows
+; an entry that the driver does not enforce.  The count uses the same rule as
+; ConfigLoad (registry value data != 0).  An entry that is already active under
+; the same name does not grow the list and is therefore always allowed.
+; On denial a warning MessageBox is shown (owner = rdx, may be 0).
+; Stack: 5 pushes leave rsp%16=0; sub 50h keeps it 0 (8-arg RegEnumValueW fits).
+; ==============================================================================
+PUBLIC ConfigTrustedCanAdd
+ConfigTrustedCanAdd proc
+    push    rbx
+    push    rsi
+    push    rdi
+    push    r12
+    push    r13
+    sub     rsp, 50h
+
+    mov     rdi, rcx                        ; name being added
+    mov     r13, rdx                        ; owner window
+    xor     r12d, r12d                      ; active trusted count
+
+    lea     rcx, str_key_trusted
+    call    _CfgOpen
+    mov     rbx, rax
+    test    rbx, rbx
+    jz      @ctca_ok                        ; no key yet → list is empty
+    xor     esi, esi
+
+@ctca_loop:
+    mov     cfg_namelen, 520
+    mov     cfg_datalen, 4
+
+    lea     rax, cfg_datalen
+    mov     qword ptr [rsp+38h], rax
+    lea     rax, cfg_flags
+    mov     qword ptr [rsp+30h], rax
+    lea     rax, cfg_type
+    mov     qword ptr [rsp+28h], rax
+    mov     qword ptr [rsp+20h], 0
+    lea     r9, cfg_namelen
+    lea     r8, cfg_name_buf
+    mov     edx, esi
+    mov     rcx, rbx
+    call    RegEnumValueW
+    cmp     eax, ERROR_NO_MORE_ITEMS
+    je      @ctca_done
+    test    eax, eax
+    jnz     @ctca_next
+
+    mov     ecx, cfg_flags
+    test    ecx, ecx
+    jz      @ctca_next                      ; disabled entries are not sent to driver
+
+    lea     rcx, cfg_name_buf
+    mov     rdx, rdi
+    call    wcscmp_ci
+    test    rax, rax
+    jz      @ctca_close_ok                  ; same name already active → no growth
+    inc     r12d
+
+@ctca_next:
+    inc     esi
+    jmp     @ctca_loop
+
+@ctca_done:
+    mov     rcx, rbx
+    call    RegCloseKey
+    cmp     r12d, (VG_IOCTL_BUF_SIZE / VG_TRUSTED_RECORD_SIZE)
+    jb      @ctca_ok
+
+    mov     r9d, MB_OK + MB_ICONWARNING
+    lea     r8, str_lim_title
+    lea     rdx, str_lim_trusted
+    mov     rcx, r13
+    call    MessageBoxW
+    xor     eax, eax
+    jmp     @ctca_ret
+
+@ctca_close_ok:
+    mov     rcx, rbx
+    call    RegCloseKey
+@ctca_ok:
+    mov     eax, 1
+@ctca_ret:
+    add     rsp, 50h
+    pop     r13
+    pop     r12
+    pop     rdi
+    pop     rsi
+    pop     rbx
+    ret
+ConfigTrustedCanAdd endp
 
 ; ==============================================================================
 ; ConfigSaveTrustedEx  rcx=name(WCHAR*)  edx=value(DWORD)  →  void

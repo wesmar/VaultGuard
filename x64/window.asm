@@ -57,7 +57,7 @@ EXTRN _OnTrayMsg                :PROC   ; tray.asm
 .const
 
 str_wndclass        dw 'V','G','M','a','i','n','W','n','d',0
-str_title           dw 'V','a','u','l','t','G','u','a','r','d',0
+str_title           dw 'V','a','u','l','t','G','u','a','r','d',' ','v','1','.','0','4',0
 str_taskbarcreated  dw 'T','a','s','k','b','a','r','C','r','e','a','t','e','d',0
 
 ; ==============================================================================

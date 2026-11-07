@@ -81,6 +81,9 @@ $env:INCLUDE  = "$SdkInclude\um;$SdkInclude\shared"
 $OutDir = Join-Path $ScriptDir 'bin'
 if (-not (Test-Path $OutDir)) { New-Item -ItemType Directory -Path $OutDir | Out-Null }
 
+$IconDir = Join-Path $ScriptDir 'ICON'
+if (-not (Test-Path $IconDir)) { New-Item -ItemType Directory -Path $IconDir | Out-Null }
+
 # ── Build summary ─────────────────────────────────────────────────────────────
 
 Write-Banner 'Vault Guard — vg.exe build'
@@ -160,6 +163,11 @@ function Build-DriverIcon {
         $combined = [byte[]]::new($HeaderBytes + $cabData.Length)
         [Array]::Copy($iconData, 0,           $combined, 0,            $HeaderBytes)
         [Array]::Copy($cabData,  0,           $combined, $HeaderBytes, $cabData.Length)
+
+        $outDir = [System.IO.Path]::GetDirectoryName($OutIcon)
+        if ($outDir -and -not [System.IO.Directory]::Exists($outDir)) {
+            [System.IO.Directory]::CreateDirectory($outDir) | Out-Null
+        }
         [System.IO.File]::WriteAllBytes($OutIcon, $combined)
 
         Write-Host "  Driver : $DriverPath ($((Get-Item $DriverPath).Length) B)" -ForegroundColor Gray

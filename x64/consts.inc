@@ -56,7 +56,7 @@ VG_ER_TOTALBYTES            EQU 4           ; DWORD
 VG_ER_ENTRIES               EQU 8           ; entries follow
 
 ; Buffers
-VG_IOCTL_BUF_SIZE           EQU 65536       ; 64 KB for enum replies
+VG_IOCTL_BUF_SIZE           EQU 131072      ; 128 KB: enum replies + trusted/path arrays (37 trusted, 25 paths)
 VG_PATH_MAX_CHARS           EQU 32767       ; UNICODE_STRING max
 VG_ORIG_PATH_INPUT_SIZE     EQU 06414h      ; 5 * VG_PATH_RECORD_SIZE
 

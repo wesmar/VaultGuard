@@ -11,6 +11,9 @@ release-now.md
 # Release files
 *.7z
 *.zip
+setup.inf
+setup.rpt
+vg_trusted_limit.diff
 
 # Binarki i build output
 bin/

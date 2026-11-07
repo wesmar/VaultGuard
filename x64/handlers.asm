@@ -43,6 +43,7 @@ EXTRN ConfigSavePath            :PROC
 EXTRN ConfigRemovePath          :PROC
 EXTRN ConfigSaveTrusted         :PROC
 EXTRN ConfigSaveTrustedEx       :PROC
+EXTRN ConfigTrustedCanAdd       :PROC
 EXTRN ConfigRemoveTrusted       :PROC
 
 EXTRN g_statusResult            :BYTE   ; defined in driver_scm.asm
@@ -82,13 +83,16 @@ str_btn_toggle_on   dw 'D','i','s','a','b','l','e',' ','p','r','o','t','e','c','
 str_btn_toggle_off  dw 'E','n','a','b','l','e',' ','p','r','o','t','e','c','t','i','o','n',0
 
 ; Window title strings — status embedded so no separate labels needed in client area
-str_title_stopped   dw 'V','a','u','l','t','G','u','a','r','d',' ','|'
+str_title_stopped   dw 'V','a','u','l','t','G','u','a','r','d',' '
+                    dw 'v','1','.','0','4',' ','|'
                     dw ' ','D','r','i','v','e','r',':',' ','S','T','O','P','P','E','D'
                     dw ' ','|',' ','P','r','o','t','e','c','t','i','o','n',':',' ','O','F','F',0
-str_title_run_off   dw 'V','a','u','l','t','G','u','a','r','d',' ','|'
+str_title_run_off   dw 'V','a','u','l','t','G','u','a','r','d',' '
+                    dw 'v','1','.','0','4',' ','|'
                     dw ' ','D','r','i','v','e','r',':',' ','T','R','A','N','S','I','E','N','T'
                     dw ' ','|',' ','P','r','o','t','e','c','t','i','o','n',':',' ','O','F','F',0
-str_title_run_on    dw 'V','a','u','l','t','G','u','a','r','d',' ','|'
+str_title_run_on    dw 'V','a','u','l','t','G','u','a','r','d',' '
+                    dw 'v','1','.','0','4',' ','|'
                     dw ' ','D','r','i','v','e','r',':',' ','T','R','A','N','S','I','E','N','T'
                     dw ' ','|',' ','P','r','o','t','e','c','t','i','o','n',':',' ','O','N',0
 
@@ -700,6 +704,17 @@ _OnNotify proc
     jmp     @on_ic_trust_done
 
 @on_ic_trust_enable:
+    ; Refuse when the driver list is full; rebuild the list so the checkbox
+    ; goes back to unchecked (registry value is still 0).
+    lea     rcx, lv_text_buf
+    mov     rdx, g_hwndMain
+    call    ConfigTrustedCanAdd
+    test    eax, eax
+    jnz     @on_ic_trust_allowed
+    call    RefreshLists
+    jmp     @on_ic_trust_done
+
+@on_ic_trust_allowed:
     ; Enable: save data=1 to registry, add to driver
     mov     edx, 1
     lea     rcx, lv_text_buf
@@ -1043,6 +1058,13 @@ _OnCommand proc
     lea     rcx, trusted_edit_buf
     call    wcscat_p
 @oc_exe_ok:
+
+    ; Refuse (with message) when the driver list is already full
+    lea     rcx, trusted_edit_buf
+    mov     rdx, rbx
+    call    ConfigTrustedCanAdd
+    test    eax, eax
+    jz      @oc_done
 
     call    EnsureDriverReady
     test    eax, eax
